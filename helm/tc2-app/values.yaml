@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: 798329741292.dkr.ecr.us-east-1.amazonaws.com/tc2-hello-world
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 50
