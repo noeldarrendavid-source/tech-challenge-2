@@ -33,7 +33,6 @@ pipeline {
                 sh '''
                     aws ecr get-login-password --region $AWS_REGION | \
                     docker login --username AWS --password-stdin $ECR_REGISTRY
-
                     docker tag $ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
                     docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
                     echo "Image pushed to ECR successfully"
@@ -45,7 +44,7 @@ pipeline {
             steps {
                 sh '''
                     aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-
+                    sed -i "s|client.authentication.k8s.io/v1alpha1|client.authentication.k8s.io/v1beta1|g" ~/.kube/config
                     if helm status $HELM_RELEASE > /dev/null 2>&1; then
                         echo "Upgrading existing release"
                         helm upgrade $HELM_RELEASE $HELM_CHART_PATH \
