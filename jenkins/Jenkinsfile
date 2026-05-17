@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION      = 'us-east-1'
+        ECR_REGISTRY    = '798329741292.dkr.ecr.us-east-1.amazonaws.com'
+        ECR_REPO        = 'tc2-hello-world'
+        IMAGE_TAG       = "latest"
+        CLUSTER_NAME    = 'tc2-cluster'
+        HELM_RELEASE    = 'tc2-app'
+        HELM_CHART_PATH = './helm/tc2-app'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                echo 'Code checked out from GitHub'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t $ECR_REPO:$IMAGE_TAG ./app
+                    echo "Docker image built successfully"
+                '''
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                sh '''
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin $ECR_REGISTRY
+
+                    docker tag $ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+                    docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+                    echo "Image pushed to ECR successfully"
+                '''
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+                    if helm status $HELM_RELEASE > /dev/null 2>&1; then
+                        echo "Upgrading existing release"
+                        helm upgrade $HELM_RELEASE $HELM_CHART_PATH \
+                            --set image.repository=$ECR_REGISTRY/$ECR_REPO \
+                            --set image.tag=$IMAGE_TAG
+                    else
+                        echo "Installing new release"
+                        helm install $HELM_RELEASE $HELM_CHART_PATH \
+                            --set image.repository=$ECR_REGISTRY/$ECR_REPO \
+                            --set image.tag=$IMAGE_TAG
+                    fi
+                    echo "Deployment complete"
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    kubectl rollout status deployment/$HELM_RELEASE --timeout=120s
+                    kubectl get pods
+                    kubectl get service ${HELM_RELEASE}-service
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully — app deployed to EKS'
+        }
+        failure {
+            echo 'Pipeline failed — check logs above'
+        }
+    }
+}
