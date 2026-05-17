@@ -1,0 +1,12 @@
+{
+  "name": "tc2-hello-world",
+  "version": "1.0.0",
+  "description": "Tech Challenge 2 - Hello World Node.js app",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
