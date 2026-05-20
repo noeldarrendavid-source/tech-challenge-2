@@ -493,3 +493,45 @@ sudo systemctl restart jenkins
 **Darren Noel**
 AWS Cloud Engineering Bootcamp — Tech Challenge 2
 GitHub: [noeldarrendavid-source/tech-challenge-2](https://github.com/noeldarrendavid-source/tech-challenge-2)
+
+---
+
+## Bonus: GitOps Alternative with GitHub Actions & Argo CD
+
+This implementation lives on the `gitops` branch and provides a modern GitOps-style CI/CD pipeline as an alternative to Jenkins.
+
+### Architecture
+git push (gitops branch)
+↓
+GitHub Actions (ubuntu-latest, no EC2 needed)
+→ Build Docker image (linux/amd64)
+→ Push to Amazon ECR
+↓
+Argo CD (running inside EKS cluster)
+→ Detects changes in helm/tc2-app
+→ Auto-syncs cluster state to Git
+→ Self-heals any configuration drift
+↓
+EKS Pods updated → ALB → Hello, World!
+
+### Why GitOps over Jenkins
+
+| Jenkins (main branch) | GitOps (gitops branch) |
+|---|---|
+| Requires EC2 instance | GitHub-hosted runners (free) |
+| Push-based deployment | Pull-based deployment |
+| Pipeline triggers deploy | Git is source of truth |
+| Manual sync | Automated with self-heal |
+
+### Argo CD Application
+
+- **Repo:** github.com/noeldarrendavid-source/tech-challenge-2
+- **Branch:** gitops
+- **Path:** helm/tc2-app
+- **Sync Policy:** Automated (Prune + Self-heal)
+- **Dashboard:** https://a37ac24becb5d4b81ab036a10434b2d3-467719368.us-east-1.elb.amazonaws.com
+
+### GitHub Actions Workflow
+
+Triggered on every push to `gitops` branch that changes `app/` files.
+Builds and pushes a linux/amd64 Docker image to ECR in under 30 seconds.
