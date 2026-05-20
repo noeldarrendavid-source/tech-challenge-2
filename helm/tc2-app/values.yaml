@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: 798329741292.dkr.ecr.us-east-1.amazonaws.com/tc2-hello-world
+  repository: 229699885047.dkr.ecr.us-east-1.amazonaws.com/tc2-hello-world
   pullPolicy: Always
   tag: "latest"
 
