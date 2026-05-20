@@ -1,0 +1,62 @@
+name: TC2 GitOps CI — Build and Push to ECR
+
+on:
+  push:
+    branches:
+      - gitops
+    paths:
+      - 'app/**'
+      - '.github/workflows/**'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: tc2-hello-world
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-push:
+    name: Build Docker Image and Push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./app
+          echo "Docker image built successfully"
+
+      - name: Tag image for ECR
+        run: |
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Push image to ECR
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "Image pushed: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Update Helm values with new image
+        run: |
+          sed -i "s|tag:.*|tag: \"$IMAGE_TAG\"|g" helm/tc2-app/values.yaml
+          echo "Helm values updated"
+
+      - name: Commit updated Helm values
+        run: |
+          git config user.email "github-actions@github.com"
+          git config user.name "GitHub Actions"
+          git add helm/tc2-app/values.yaml
+          git diff --staged --quiet || git commit -m "ci: update image tag to $IMAGE_TAG [skip ci]"
+          git push
